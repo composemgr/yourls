@@ -1,0 +1,68 @@
+# nginx proxy address - http://172.17.0.1:60321
+
+name: yourls
+x-logging: &default-logging
+  options:
+    max-size: '5m'
+    max-file: '1'
+  driver: json-file
+
+services:
+  app:
+    image: yourls:latest
+    container_name: yourls-app
+    hostname: ${BASE_HOSTNAME_NAME:-$HOSTNAME}
+    restart: always
+    pull_policy: always
+    logging: *default-logging
+    environment:
+      TZ: ${TZ:-America/New_York}
+      YOURLS_DB_USER: root
+      YOURLS_DB_NAME: yourls
+      YOURLS_DB_HOST: yourls-db
+      YOURLS_DB_PASS: cbb812144fd4d1ed5d342096ae79372d
+      YOURLS_USER: ${APP_ADMIN_USER:-administrator}
+      YOURLS_PASS: ${APP_ADMIN_PASS:-i3UvaNvrSjwLsgYyonAH4jucBYuRUF82}
+      YOURLS_SITE: https://${BASE_DOMAIN_NAME:-$HOSTNAME}
+    ports:
+      - '172.17.0.1:60321:80'
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - yourls
+
+  db:
+    image: mariadb:latest
+    container_name: yourls-db
+    hostname: mariadb
+    restart: always
+    pull_policy: always
+    logging: *default-logging
+    environment:
+      TZ: ${TZ:-America/New_York}
+      MARIADB_ALLOW_EMPTY_PASSWORD: false
+      MARIADB_ROOT_PASSWORD: cbb812144fd4d1ed5d342096ae79372d
+    volumes:
+      - './rootfs/db/mysql:/var/lib/mysql'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'healthcheck.sh',
+          '--su-mysql',
+          '--connect',
+          '--innodb_initialized',
+        ]
+      start_period: 1m
+      start_interval: 10s
+      interval: 1m
+      timeout: 5s
+      retries: 3
+    networks:
+      - yourls
+
+networks:
+  yourls:
+    name: yourls
+    external: false
