@@ -44,7 +44,7 @@ services:
       MARIADB_ALLOW_EMPTY_PASSWORD: false
       MARIADB_ROOT_PASSWORD: cbb812144fd4d1ed5d342096ae79372d
     volumes:
-      - './rootfs/db/mysql:/var/lib/mysql'
+      - './rootfs/data/db/mysql:/var/lib/mysql'
     healthcheck:
       test:
         [
