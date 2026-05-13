@@ -17,6 +17,8 @@ services:
     logging: *default-logging
     environment:
       TZ: ${TZ:-America/New_York}
+      CONTAINER_NAME: yourls-app
+      HOSTNAME: ${BASE_HOST_NAME:-$HOSTNAME}
       YOURLS_DB_USER: ${DB_USER_NAME:-yourls}
       YOURLS_DB_NAME: ${DB_CREATE_DATABASE_NAME:-yourls}
       YOURLS_DB_HOST: yourls-db
@@ -31,6 +33,24 @@ services:
         condition: service_healthy
     networks:
       - yourls
+      - proxy
+      - cloudflare
+    labels:
+      - 'traefik.enable=true'
+      - 'cloudflare.enable=true'
+      - 'traefik.docker.network=proxy'
+      - 'cloudflare.service=http://yourls-app:80'
+      - 'cloudflare.hostname=yourls.${CLOUDFLARE_ZONE_NAME:-}'
+      - 'traefik.http.routers.yourls-app.entrypoints=http'
+      - 'traefik.http.routers.yourls-app-secure.tls=true'
+      - 'traefik.http.routers.yourls-app.rule=Host($(${BASE_HOST_NAME:-$HOSTNAME}))'
+      - 'traefik.http.middlewares.yourls-app-https-redirect.redirectscheme.scheme=https'
+      - 'traefik.http.routers.yourls-app.middlewares=yourls-app-https-redirect'
+      - 'traefik.http.routers.yourls-app-secure.entrypoints=https'
+      - 'traefik.http.routers.yourls-app-secure.rule=Host($(${BASE_HOST_NAME:-$HOSTNAME}))'
+      - 'traefik.http.routers.yourls-app-secure.tls.certresolver=cloudflare'
+      - 'traefik.http.routers.yourls-app-secure.service=yourls-app'
+      - 'traefik.http.services.yourls-app.loadbalancer.server.port=80'
 
   db:
     image: mariadb:latest
@@ -41,6 +61,7 @@ services:
     logging: *default-logging
     environment:
       TZ: ${TZ:-America/New_York}
+      CONTAINER_NAME: yourls-db
       MARIADB_ALLOW_EMPTY_PASSWORD: false
       MARIADB_ROOT_PASSWORD: ${DB_ADMIN_PASS:-changeme_admin_password}
       MARIADB_DATABASE: ${DB_CREATE_DATABASE_NAME:-yourls}
@@ -69,3 +90,7 @@ networks:
   yourls:
     name: yourls
     external: false
+  proxy:
+    external: true
+  cloudflare:
+    external: true
