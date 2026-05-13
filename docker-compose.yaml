@@ -11,18 +11,18 @@ services:
   app:
     image: yourls:latest
     container_name: yourls-app
-    hostname: ${BASE_HOSTNAME_NAME:-$HOSTNAME}
+    hostname: ${BASE_HOST_NAME:-$HOSTNAME}
     restart: always
     pull_policy: always
     logging: *default-logging
     environment:
       TZ: ${TZ:-America/New_York}
-      YOURLS_DB_USER: root
-      YOURLS_DB_NAME: yourls
+      YOURLS_DB_USER: ${DB_USER_NAME:-yourls}
+      YOURLS_DB_NAME: ${DB_CREATE_DATABASE_NAME:-yourls}
       YOURLS_DB_HOST: yourls-db
-      YOURLS_DB_PASS: cbb812144fd4d1ed5d342096ae79372d
+      YOURLS_DB_PASS: ${DB_USER_PASS:-changeme_db_password}
       YOURLS_USER: ${APP_ADMIN_USER:-administrator}
-      YOURLS_PASS: ${APP_ADMIN_PASS:-i3UvaNvrSjwLsgYyonAH4jucBYuRUF82}
+      YOURLS_PASS: ${APP_ADMIN_PASS:-changeme_admin_password}
       YOURLS_SITE: https://${BASE_DOMAIN_NAME:-$HOSTNAME}
     ports:
       - '172.17.0.1:60321:80'
@@ -35,14 +35,17 @@ services:
   db:
     image: mariadb:latest
     container_name: yourls-db
-    hostname: mariadb
+    hostname: yourls-db
     restart: always
     pull_policy: always
     logging: *default-logging
     environment:
       TZ: ${TZ:-America/New_York}
       MARIADB_ALLOW_EMPTY_PASSWORD: false
-      MARIADB_ROOT_PASSWORD: cbb812144fd4d1ed5d342096ae79372d
+      MARIADB_ROOT_PASSWORD: ${DB_ADMIN_PASS:-changeme_admin_password}
+      MARIADB_DATABASE: ${DB_CREATE_DATABASE_NAME:-yourls}
+      MARIADB_USER: ${DB_USER_NAME:-yourls}
+      MARIADB_PASSWORD: ${DB_USER_PASS:-changeme_db_password}
     volumes:
       - './volumes/data/db/mysql:/var/lib/mysql'
     healthcheck:
