@@ -1,0 +1,78 @@
+name: yourls
+x-logging: &default-logging
+  options:
+    max-size: '5m'
+    max-file: '1'
+  driver: json-file
+
+services:
+  app:
+    image: yourls:latest
+    container_name: yourls-app
+    domainname: ${BASE_DOMAIN_NAME:-example.com}
+    hostname: ${BASE_HOST_NAME:-$HOSTNAME}
+    restart: always
+    pull_policy: always
+    logging: *default-logging
+    environment:
+      TZ: ${TZ:-America/New_York}
+      CONTAINER_NAME: yourls-app
+      HOSTNAME: ${BASE_HOST_NAME:-$HOSTNAME}
+      YOURLS_DB_USER: ${DB_USER_NAME:-yourls}
+      YOURLS_DB_NAME: ${DB_CREATE_DATABASE_NAME:-yourls}
+      YOURLS_DB_HOST: yourls-db
+      YOURLS_DB_PASS: ${DB_USER_PASS:-replace-with-a-random-password}
+      YOURLS_USER: ${APP_ADMIN_USER:-administrator}
+      YOURLS_PASS: ${APP_ADMIN_PASS:-replace-with-a-random-password}
+      YOURLS_SITE: https://${BASE_HOST_NAME:-$HOSTNAME}
+      YOURLS_SERVER: https://${BASE_HOST_NAME:-$HOSTNAME}/yourls-loader.php
+    depends_on:
+      yourls-db:
+        condition: service_healthy
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.docker.network=traefik'
+      - 'traefik.http.routers.yourls-app.entrypoints=http'
+      - 'traefik.http.routers.yourls-app.rule=Host(`${BASE_HOST_NAME:-$HOSTNAME}`)'
+      - 'traefik.http.routers.yourls-app.middlewares=yourls-app-https-redirect'
+      - 'traefik.http.middlewares.yourls-app-https-redirect.redirectscheme.scheme=https'
+      - 'traefik.http.routers.yourls-app-secure.entrypoints=https'
+      - 'traefik.http.routers.yourls-app-secure.rule=Host(`${BASE_HOST_NAME:-$HOSTNAME}`)'
+      - 'traefik.http.routers.yourls-app-secure.tls.certresolver=cloudflare'
+      - 'traefik.http.routers.yourls-app-secure.service=yourls-app'
+      - 'traefik.http.services.yourls-app.loadbalancer.server.port=80'
+    networks:
+      - yourls
+      - traefik
+
+  yourls-db:
+    image: mariadb:latest
+    container_name: yourls-db
+    domainname: ${BASE_DOMAIN_NAME:-example.com}
+    hostname: yourls-db
+    restart: always
+    pull_policy: always
+    logging: *default-logging
+    environment:
+      TZ: ${TZ:-America/New_York}
+      CONTAINER_NAME: yourls-db
+      MARIADB_DATABASE: ${DB_CREATE_DATABASE_NAME:-yourls}
+      MARIADB_USER: ${DB_USER_NAME:-yourls}
+      MARIADB_PASSWORD: ${DB_USER_PASS:-replace-with-a-random-password}
+      MARIADB_ROOT_PASSWORD: ${DB_ADMIN_PASS:-replace-with-a-random-password}
+    volumes:
+      - './volumes/db/mariadb/yourls:/var/lib/mysql:z'
+    healthcheck:
+      test: ['CMD', 'healthcheck.sh', '--connect', '--innodb_initialized']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - yourls
+
+networks:
+  yourls:
+    name: yourls
+    external: false
+  traefik:
+    external: true
